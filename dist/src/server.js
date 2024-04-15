@@ -47,6 +47,9 @@ async function validateUser(request) {
     return await connectToDB().then((req) => req.query(`select * from LoggedInUsers where username = '${request.body.username.trim()}'; 
     select scope_identity() as id`));
 }
+app.get('/', (req, res) => {
+    res.status(201).send('Hello from NodeJS...');
+});
 app.get("/api/todos", (req, res) => {
     getAllToDos().then((records) => {
         todos = records.recordset;

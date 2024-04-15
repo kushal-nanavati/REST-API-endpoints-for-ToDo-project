@@ -80,6 +80,10 @@ async function validateUser(
   );
 }
 
+app.get('/', (req, res) => {
+  res.status(201).send('Hello from NodeJS...');
+});
+
 app.get("/api/todos", (req, res) => {
   getAllToDos().then((records) => {
     todos = records.recordset;
