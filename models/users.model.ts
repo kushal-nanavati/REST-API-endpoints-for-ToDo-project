@@ -5,7 +5,7 @@ export interface RegisteredUsers {
     email: string;
     username: string;
     password: string;
-    mobileNumber: number;
+    contactNumber: string;
 }
 
 export interface LoggedInUsers {

@@ -1,7 +1,7 @@
- {
-    "user": "sa",
-    "password": "admin@12345",
-    "server": "localhost",
-    "port": 1433,
-    "database": "ToDoTasks"
-  }
+{
+  "user": "kushal",
+  "password": "Admin12345!",
+  "server": "todotasks.ctb6amqle1ys.ap-south-1.rds.amazonaws.com",
+  "port": 1433,
+  "database": "ToDoTasks"
+}

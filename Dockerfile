@@ -1,14 +1,18 @@
-FROM node:21
+FROM node:22
 
-WORKDIR /app
+WORKDIR /usr/src/app
 
-COPY ./package.json .
+COPY package*.json ./
 
 RUN npm install
 
 COPY . .
 
-EXPOSE 4000
+ARG DEFAULT_PORT 4000
 
-CMD ["node","./dist/src/server.js"]
+ENV PORT $DEFAULT_PORT
+
+EXPOSE $PORT
+
+CMD ["npm","start"]
 

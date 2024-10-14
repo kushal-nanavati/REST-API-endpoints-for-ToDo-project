@@ -7,6 +7,8 @@ import config from "./config.json";
 import { LoggedInUsers, RegisteredUsers } from "../models/users.model";
 import md5 from "md5";
 import { signAccessToken } from "./auth/authenticate-user";
+import _ from 'lodash';
+import { AuthResponseData } from '../models/response.model';
 
 const app = express();
 app.use(bodyParser.json());
@@ -47,16 +49,18 @@ async function deleteTask(id: number): Promise<mssql.IResult<TaskList>> {
 
 async function postUser(
   request: Request<RegisteredUsers>
-): Promise<mssql.IResult<RegisteredUsers>> {
-  return await connectToDB().then((req) =>
-    req.query(`insert into RegisteredUsers 
-    (firstName, lastName, email, username, passwd, mobileNumber) values 
-    ('${request.body.firstName.trim()}','${request.body.lastName.trim()}','${request.body.email.trim()}',
-    '${request.body.username.trim()}','${md5(
-      request.body.password.trim()
-    )}','${request.body.contactNumber.trim()}'); 
-    select scope_identity() as id`)
-  );
+): Promise<mssql.IResult<RegisteredUsers>> {    
+    const resultExists = await connectToDB().then(req => req.query(`select username from RegisteredUsers where email = '${request.body.username.trim()}'`));    
+    if(resultExists.rowsAffected.at(0) === 0) {
+      return await connectToDB().then(req => req.query(`insert into RegisteredUsers 
+      (firstName, lastName, email, username, password, contactNumber) values 
+      ('${request.body.firstName.trim()}','${request.body.lastName.trim()}','${request.body.email.trim()}',
+      '${request.body.username.trim()}','${md5(request.body.password.trim())}'
+      ,'${request.body.contactNumber.trim()}'); 
+      select scope_identity() as id`));      
+    } else {
+      throw new Error('Email already exists!!');      
+    }
 }
 
 async function postLoggedInUser(
@@ -64,24 +68,24 @@ async function postLoggedInUser(
   id: number
 ): Promise<mssql.IResult<RegisteredUsers>> {
   return await connectToDB().then((req) =>
-    req.query(`insert into LoggedInUsers (username, passwd, userId) values 
-    ('${request.body.username.trim()}','${md5(
-      request.body.password.trim()
-    )}',${id})`)
+    req.query(`insert into LoggedInUsers (username, password, userId) values 
+    ('${request.body.username.trim()}','${md5(request.body.password.trim())}',${id})`)
   );
 }
 
 async function validateUser(
   request: Request<LoggedInUsers>
-): Promise<mssql.IResult<LoggedInUsers>> {
+): Promise<mssql.IResult<LoggedInUsers>> {    
   return await connectToDB().then((req) =>
-    req.query(`select * from LoggedInUsers where username = '${request.body.username.trim()}'; 
+    req.query(`select * from LoggedInUsers where username = '${request.body.username.trim()}' and
+      password = '${md5(request.body.password.trim())}'; 
     select scope_identity() as id`)
   );
 }
 
 app.get('/', (req, res) => {
-  res.status(201).send('Hello from NodeJS...');
+  console.log('Testing this GET API.');  
+  res.status(201).send('Hello from Docker and Kubernetes');
 });
 
 app.get("/api/todos", (req, res) => {
@@ -108,16 +112,22 @@ app.post("/api/register", (req: Request<RegisteredUsers>, res) => {
     postLoggedInUser(req, response.recordset.at(0).id);
     userId = response.recordset.at(0).id;
     res.status(201).send(response.rowsAffected);
-  });
+  }).catch(error => res.status(400).send(error.message));
 });
 
 app.post("/api/login", (req: Request<LoggedInUsers>, res) => {
-  validateUser(req).then(async (response) => {
-    if (!response.rowsAffected) {
-      res.status(406).send("Something went wrong...");
-    } else {
+  validateUser(req).then(async (response) => {        
+    if (_.isEmpty(response.recordset)) {
+      res.status(406).send("Invalid credentials, please try again later...");
+    } else {                  
       const token = await signAccessToken(response.recordset.at(0).userId);
-      res.status(201).send({ token });
+      const resData: AuthResponseData = {
+        username: req.body.username,
+        userId: response.recordset.at(0).userId,
+        token: token,
+        expiresIn: Number('0.25') * 60 * 60 * 1000
+      };
+      res.status(201).send(resData);
     }
   });
 });
